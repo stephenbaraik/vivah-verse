@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Booking, Venue, Wedding, User, Payment } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
+
+type BookingWithRelations = Booking & {
+  venue: Venue;
+  wedding: Wedding & { user: User };
+  payment: Payment | null;
+};
 
 @Injectable()
 export class InvoicesService {
@@ -47,7 +54,14 @@ export class InvoicesService {
     // Generate PDF
     const pdfFilename = `${invoiceNo}.pdf`;
     const pdfPath = path.join(invoicesDir, pdfFilename);
-    await this.createPdfInvoice(booking, invoiceNo, subtotal, gstAmount, totalAmount, pdfPath);
+    await this.createPdfInvoice(
+      booking as BookingWithRelations,
+      invoiceNo,
+      subtotal,
+      gstAmount,
+      totalAmount,
+      pdfPath,
+    );
 
     // Save invoice record
     const invoice = await this.prisma.invoice.create({
@@ -65,7 +79,7 @@ export class InvoicesService {
   }
 
   private async createPdfInvoice(
-    booking: any,
+    booking: BookingWithRelations,
     invoiceNo: string,
     subtotal: number,
     gstAmount: number,
@@ -97,7 +111,9 @@ export class InvoicesService {
       doc.fontSize(12).text('Bill To:', { underline: true });
       doc.fontSize(10);
       doc.text(`Name: ${booking.wedding?.user?.email || 'Customer'}`);
-      doc.text(`Wedding Date: ${booking.weddingDate.toLocaleDateString('en-IN')}`);
+      doc.text(
+        `Wedding Date: ${booking.weddingDate.toLocaleDateString('en-IN')}`,
+      );
       doc.moveDown();
 
       // Venue details
@@ -113,7 +129,10 @@ export class InvoicesService {
       const tableTop = doc.y;
       doc.text('Description', 50, tableTop);
       doc.text('Amount (₹)', 400, tableTop, { align: 'right' });
-      doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+      doc
+        .moveTo(50, tableTop + 15)
+        .lineTo(550, tableTop + 15)
+        .stroke();
 
       // Table content
       const row1Y = tableTop + 25;
@@ -129,10 +148,15 @@ export class InvoicesService {
       doc.text((gstAmount / 200).toFixed(2), 400, row3Y, { align: 'right' });
 
       // Total line
-      doc.moveTo(50, row3Y + 20).lineTo(550, row3Y + 20).stroke();
+      doc
+        .moveTo(50, row3Y + 20)
+        .lineTo(550, row3Y + 20)
+        .stroke();
       const totalY = row3Y + 30;
       doc.font('Helvetica-Bold').fontSize(12).text('Total:', 50, totalY);
-      doc.text(`₹${(totalAmount / 100).toFixed(2)}`, 400, totalY, { align: 'right' });
+      doc.text(`₹${(totalAmount / 100).toFixed(2)}`, 400, totalY, {
+        align: 'right',
+      });
       doc.font('Helvetica'); // Reset to regular font
 
       doc.moveDown(4);
@@ -157,7 +181,9 @@ export class InvoicesService {
       doc.moveDown(2);
 
       // Footer
-      doc.fontSize(8).text('This is a computer-generated invoice.', { align: 'center' });
+      doc
+        .fontSize(8)
+        .text('This is a computer-generated invoice.', { align: 'center' });
       doc.text('Thank you for choosing Vivah Verse!', { align: 'center' });
 
       doc.end();

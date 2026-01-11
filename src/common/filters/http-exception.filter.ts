@@ -22,9 +22,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      message = typeof exceptionResponse === 'string' 
-        ? exceptionResponse 
-        : exceptionResponse;
+      message =
+        typeof exceptionResponse === 'string'
+          ? exceptionResponse
+          : exceptionResponse;
     } else {
       // Log internal errors but don't expose them
       this.logger.error('Unhandled exception', exception);

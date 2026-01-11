@@ -24,6 +24,8 @@ model User {
   email     String   @unique
   password  String
   role      UserRole
+  name      String?
+  phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -66,8 +68,15 @@ model Vendor {
   venues       Venue[]
 }
 
+enum VenueStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
 model Venue {
-  id           String   @id @default(uuid())
+  id           String      @id @default(uuid())
   vendorId     String
   name         String
   city         String
@@ -79,7 +88,8 @@ model Venue {
   description  String?
   amenities    String[]
   images       String[]
-  createdAt    DateTime @default(now())
+  status       VenueStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
 
   vendor       Vendor              @relation(fields: [vendorId], references: [id])
   availability VenueAvailability[]

@@ -1,11 +1,20 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AvailabilityService {
   constructor(private prisma: PrismaService) {}
 
-  async blockDates(userId: string, venueId: string, startDate: string, endDate: string) {
+  async blockDates(
+    userId: string,
+    venueId: string,
+    startDate: string,
+    endDate: string,
+  ) {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -27,15 +36,14 @@ export class AvailabilityService {
     const conflict = await this.prisma.venueAvailability.findFirst({
       where: {
         venueId,
-        AND: [
-          { startDate: { lte: end } },
-          { endDate: { gte: start } },
-        ],
+        AND: [{ startDate: { lte: end } }, { endDate: { gte: start } }],
       },
     });
 
     if (conflict) {
-      throw new BadRequestException('Venue already blocked for this date range');
+      throw new BadRequestException(
+        'Venue already blocked for this date range',
+      );
     }
 
     // 3️⃣ Block dates

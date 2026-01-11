@@ -1,14 +1,14 @@
+import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
 import {
-  Controller,
-  Post,
-  Body,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { CancellationsService } from './cancellations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
+import { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Cancellations')
 @ApiBearerAuth()
@@ -19,9 +19,12 @@ export class CancellationsController {
 
   @Post()
   @ApiOperation({ summary: 'Cancel a booking and initiate refund' })
-  @ApiResponse({ status: 200, description: 'Booking cancelled, refund initiated' })
+  @ApiResponse({
+    status: 200,
+    description: 'Booking cancelled, refund initiated',
+  })
   @ApiResponse({ status: 400, description: 'Booking not cancellable' })
-  cancelBooking(@Req() req, @Body() dto: CancelBookingDto) {
+  cancelBooking(@Req() req: AuthRequest, @Body() dto: CancelBookingDto) {
     return this.cancellationsService.cancelBooking(
       req.user.userId,
       dto.bookingId,

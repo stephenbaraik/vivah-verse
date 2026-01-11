@@ -30,9 +30,9 @@ async function bootstrap() {
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,           // strips unknown fields
+      whitelist: true, // strips unknown fields
       forbidNonWhitelisted: true,
-      transform: true,           // auto-transform types
+      transform: true, // auto-transform types
     }),
   );
 
@@ -58,4 +58,4 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000);
   console.log(`🚀 Server running on port ${process.env.PORT ?? 3000}`);
 }
-bootstrap();
+void bootstrap();

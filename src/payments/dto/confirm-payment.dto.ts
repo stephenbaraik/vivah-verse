@@ -6,7 +6,9 @@ export class ConfirmPaymentDto {
   @IsString()
   paymentId: string;
 
-  @ApiProperty({ description: 'Provider reference (e.g., Razorpay payment ID)' })
+  @ApiProperty({
+    description: 'Provider reference (e.g., Razorpay payment ID)',
+  })
   @IsString()
   providerRef: string;
 }

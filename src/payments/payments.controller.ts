@@ -6,7 +6,13 @@ import {
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import * as crypto from 'crypto';
@@ -14,6 +20,19 @@ import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
+import { AuthRequest } from '../common/types/auth-request';
+
+type RazorpayWebhookBody = {
+  event: string;
+  payload: {
+    payment: {
+      entity: {
+        order_id: string;
+        id: string;
+      };
+    };
+  };
+};
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -25,11 +44,8 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Initiate payment for a booking' })
   @ApiResponse({ status: 201, description: 'Razorpay order created' })
-  initiatePayment(@Req() req, @Body() dto: InitiatePaymentDto) {
-    return this.paymentsService.initiatePayment(
-      req.user.userId,
-      dto.bookingId,
-    );
+  initiatePayment(@Req() req: AuthRequest, @Body() dto: InitiatePaymentDto) {
+    return this.paymentsService.initiatePayment(req.user.userId, dto.bookingId);
   }
 
   // Legacy confirm (for testing without Razorpay)
@@ -38,10 +54,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Confirm payment (legacy/testing)' })
   confirmPayment(@Body() dto: ConfirmPaymentDto) {
-    return this.paymentsService.confirmPayment(
-      dto.paymentId,
-      dto.providerRef,
-    );
+    return this.paymentsService.confirmPayment(dto.paymentId, dto.providerRef);
   }
 
   // Razorpay webhook (NO AUTH - uses signature verification)
@@ -49,7 +62,7 @@ export class PaymentsController {
   @SkipThrottle() // Don't rate limit webhooks
   @HttpCode(200)
   @ApiExcludeEndpoint()
-  handleWebhook(@Req() req: Request) {
+  handleWebhook(@Req() req: Request<unknown, unknown, RazorpayWebhookBody>) {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
     const body = JSON.stringify(req.body);
 
@@ -58,7 +71,12 @@ export class PaymentsController {
       .update(body)
       .digest('hex');
 
-    if (signature !== req.headers['x-razorpay-signature']) {
+    const signatureHeader = req.headers['x-razorpay-signature'];
+    const headerSignature = Array.isArray(signatureHeader)
+      ? signatureHeader[0]
+      : signatureHeader;
+
+    if (signature !== headerSignature) {
       throw new Error('Invalid webhook signature');
     }
 

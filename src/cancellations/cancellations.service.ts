@@ -5,10 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  BookingStatus,
-  RefundStatus,
-} from '@prisma/client';
+import { BookingStatus, RefundStatus } from '@prisma/client';
 
 @Injectable()
 export class CancellationsService {
@@ -44,8 +41,7 @@ export class CancellationsService {
 
       // 2️⃣ Calculate refund
       const daysBefore =
-        (booking.weddingDate.getTime() - Date.now()) /
-        (1000 * 60 * 60 * 24);
+        (booking.weddingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
 
       let refundAmount = 0;
 
@@ -89,7 +85,10 @@ export class CancellationsService {
 
     // Send notification outside transaction (non-blocking)
     if (result.email) {
-      this.notifications.bookingCancelled(result.email, result.refundAmount);
+      await this.notifications.bookingCancelled(
+        result.email,
+        result.refundAmount,
+      );
     }
 
     return {

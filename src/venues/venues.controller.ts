@@ -8,12 +8,19 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { VenuesService } from './venues.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateVenueDto } from './dto/create-venue.dto';
+import { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Venues')
 @Controller('venues')
@@ -26,7 +33,7 @@ export class VenuesController {
   @Roles('VENDOR')
   @ApiOperation({ summary: 'Create a new venue' })
   @ApiResponse({ status: 201, description: 'Venue created' })
-  createVenue(@Req() req, @Body() dto: CreateVenueDto) {
+  createVenue(@Req() req: AuthRequest, @Body() dto: CreateVenueDto) {
     return this.venuesService.createVenue(req.user.userId, dto);
   }
 
@@ -35,7 +42,7 @@ export class VenuesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('VENDOR')
   @ApiOperation({ summary: 'Get my venues' })
-  getMyVenues(@Req() req) {
+  getMyVenues(@Req() req: AuthRequest) {
     return this.venuesService.getMyVenues(req.user.userId);
   }
 

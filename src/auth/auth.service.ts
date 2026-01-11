@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -7,7 +11,8 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
-  private readonly REFRESH_TOKEN_DAYS = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 30;
+  private readonly REFRESH_TOKEN_DAYS =
+    Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 30;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -23,7 +28,11 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  private generateAccessToken(user: { id: string; email: string; role: UserRole }): string {
+  private generateAccessToken(user: {
+    id: string;
+    email: string;
+    role: UserRole;
+  }): string {
     return this.jwtService.sign({
       sub: user.id,
       email: user.email,
@@ -31,7 +40,70 @@ export class AuthService {
     });
   }
 
-  async register(email: string, password: string, role: UserRole, userAgent?: string, ipAddress?: string) {
+  // 🔑 Login with email and password
+  async login(
+    email: string,
+    password: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    // 1️⃣ Find user
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // 2️⃣ Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // 3️⃣ Generate tokens
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken();
+
+    // 4️⃣ Create session
+    await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        refreshToken: this.hashToken(refreshToken),
+        userAgent,
+        ipAddress,
+        expiresAt: new Date(
+          Date.now() + this.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
+        ),
+      },
+    });
+
+    console.log({ event: 'USER_LOGIN', userId: user.id, email: user.email });
+
+    // 5️⃣ Return response
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+      },
+    };
+  }
+
+  async register(
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole,
+    phone?: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     // 1️⃣ Check if user exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -44,11 +116,13 @@ export class AuthService {
     // 2️⃣ Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3️⃣ Create user
+    // 3️⃣ Create user with name and phone
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
+        name,
+        phone,
         role,
       },
     });
@@ -64,8 +138,17 @@ export class AuthService {
         refreshToken: this.hashToken(refreshToken),
         userAgent,
         ipAddress,
-        expiresAt: new Date(Date.now() + this.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(
+          Date.now() + this.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
+        ),
       },
+    });
+
+    console.log({
+      event: 'USER_REGISTERED',
+      userId: user.id,
+      email: user.email,
+      role,
     });
 
     // 6️⃣ Return safe response
@@ -75,7 +158,9 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
         role: user.role,
+        phone: user.phone,
       },
     };
   }
@@ -103,7 +188,9 @@ export class AuthService {
       where: { id: session.id },
       data: {
         refreshToken: this.hashToken(newRefreshToken),
-        expiresAt: new Date(Date.now() + this.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(
+          Date.now() + this.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
+        ),
       },
     });
 
@@ -123,7 +210,11 @@ export class AuthService {
       where: { userId },
     });
 
-    console.log({ event: 'USER_LOGGED_OUT', userId, sessionsRemoved: result.count });
+    console.log({
+      event: 'USER_LOGGED_OUT',
+      userId,
+      sessionsRemoved: result.count,
+    });
 
     return { success: true, message: 'All sessions invalidated' };
   }

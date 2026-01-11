@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -16,7 +18,9 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+      const result = appController.getHello();
+
+      expect(result).toBe('Hello World!');
     });
   });
 });

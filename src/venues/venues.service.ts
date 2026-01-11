@@ -1,5 +1,11 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { CreateVenueDto } from './dto/create-venue.dto';
 
 interface SearchParams {
   city?: string;
@@ -13,7 +19,7 @@ interface SearchParams {
 export class VenuesService {
   constructor(private prisma: PrismaService) {}
 
-  async createVenue(userId: string, data: any) {
+  async createVenue(userId: string, data: CreateVenueDto) {
     // 1️⃣ Find vendor owned by this user
     const vendor = await this.prisma.vendor.findUnique({
       where: { userId },
@@ -85,12 +91,20 @@ export class VenuesService {
       capacity: venue.capacity,
       basePrice: venue.basePrice,
       pricePerPlate: venue.pricePerPlate || Math.round(venue.basePrice / 100),
-      description: venue.description || `Beautiful venue in ${venue.city} with capacity for ${venue.capacity} guests.`,
-      amenities: venue.amenities && venue.amenities.length > 0 ? venue.amenities : ['Parking', 'AC', 'Catering', 'Decor'],
-      images: venue.images && venue.images.length > 0 ? venue.images : [
-        'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800',
-        'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800',
-      ],
+      description:
+        venue.description ||
+        `Beautiful venue in ${venue.city} with capacity for ${venue.capacity} guests.`,
+      amenities:
+        venue.amenities && venue.amenities.length > 0
+          ? venue.amenities
+          : ['Parking', 'AC', 'Catering', 'Decor'],
+      images:
+        venue.images && venue.images.length > 0
+          ? venue.images
+          : [
+              'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800',
+              'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800',
+            ],
       rating: 4.5 + Math.random() * 0.5,
       reviewCount: Math.floor(50 + Math.random() * 200),
       vendor: venue.vendor,
@@ -103,9 +117,9 @@ export class VenuesService {
    */
   async searchVenues(params: SearchParams) {
     const { city, date, guests, minPrice, maxPrice } = params;
-    
+
     // Build where clause
-    const where: any = {
+    const where: Prisma.VenueWhereInput = {
       vendor: {
         status: 'APPROVED',
       },
@@ -130,10 +144,7 @@ export class VenuesService {
       const dateObj = new Date(date);
       where.availability = {
         none: {
-          AND: [
-            { startDate: { lte: dateObj } },
-            { endDate: { gte: dateObj } },
-          ],
+          AND: [{ startDate: { lte: dateObj } }, { endDate: { gte: dateObj } }],
         },
       };
     }
@@ -153,7 +164,7 @@ export class VenuesService {
     });
 
     // Transform to match frontend expectations
-    const transformed = venues.map(venue => ({
+    const transformed = venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
       city: venue.city,
@@ -162,12 +173,20 @@ export class VenuesService {
       capacity: venue.capacity,
       basePrice: venue.basePrice,
       pricePerPlate: venue.pricePerPlate || Math.round(venue.basePrice / 100),
-      description: venue.description || `Beautiful venue in ${venue.city} with capacity for ${venue.capacity} guests.`,
-      amenities: venue.amenities && venue.amenities.length > 0 ? venue.amenities : ['Parking', 'AC', 'Catering', 'Decor'],
-      images: venue.images && venue.images.length > 0 ? venue.images : [
-        'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800',
-        'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800',
-      ],
+      description:
+        venue.description ||
+        `Beautiful venue in ${venue.city} with capacity for ${venue.capacity} guests.`,
+      amenities:
+        venue.amenities && venue.amenities.length > 0
+          ? venue.amenities
+          : ['Parking', 'AC', 'Catering', 'Decor'],
+      images:
+        venue.images && venue.images.length > 0
+          ? venue.images
+          : [
+              'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800',
+              'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800',
+            ],
       rating: 4.5 + Math.random() * 0.5,
       reviewCount: Math.floor(50 + Math.random() * 200),
       vendor: venue.vendor,

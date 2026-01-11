@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Param, UseGuards, Res, NotFoundException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Res,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Response } from 'express';
@@ -44,7 +58,7 @@ export class InvoicesController {
     @Res() res: Response,
   ) {
     const invoice = await this.invoicesService.getInvoiceById(invoiceId);
-    
+
     const pdfFilename = path.basename(invoice.pdfUrl);
     const pdfPath = path.join(process.cwd(), 'invoices', pdfFilename);
 
@@ -53,8 +67,11 @@ export class InvoicesController {
     }
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNo}.pdf"`);
-    
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${invoice.invoiceNo}.pdf"`,
+    );
+
     const fileStream = fs.createReadStream(pdfPath);
     fileStream.pipe(res);
   }

@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private transporter;
+  private transporter: Transporter;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
@@ -28,7 +29,7 @@ export class NotificationsService {
       });
       this.logger.log(`Email sent to ${to}: ${subject}`);
     } catch (error) {
-      this.logger.error(`Failed to send email to ${to}`, error);
+      this.logger.error(`Failed to send email to ${to}`, error as Error);
       // Don't throw - notifications should not block core logic
     }
   }
@@ -75,6 +76,7 @@ export class NotificationsService {
 
   // WhatsApp stub (plug Twilio/Meta/Gupshup later)
   async sendWhatsApp(phone: string, message: string) {
+    await Promise.resolve();
     this.logger.log(`WhatsApp → ${phone}: ${message}`);
     // TODO: Integrate with Twilio / Meta WhatsApp Cloud API / Gupshup
   }
