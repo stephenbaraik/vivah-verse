@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Booking, Venue, Wedding, User, Payment } from '@prisma/client';
 import PDFDocument from 'pdfkit';
@@ -17,7 +21,44 @@ export class InvoicesService {
 
   constructor(private prisma: PrismaService) {}
 
-  async generateInvoice(bookingId: string) {
+  private isAdmin(role?: string) {
+    return role === 'ADMIN';
+  }
+
+  private async assertBookingInvoiceAccess(
+    userId: string,
+    role: string | undefined,
+    bookingId: string,
+  ) {
+    if (this.isAdmin(role)) return;
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        wedding: true,
+        venue: { include: { vendor: true } },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const isClient = booking.wedding.userId === userId;
+    const isVendor = booking.venue.vendor.userId === userId;
+
+    if (!isClient && !isVendor) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
+
+  async generateInvoice(
+    userId: string,
+    role: string | undefined,
+    bookingId: string,
+  ) {
+    await this.assertBookingInvoiceAccess(userId, role, bookingId);
+
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -174,7 +215,9 @@ export class InvoicesService {
       // Payment details
       if (booking.payment) {
         doc.text('Payment Details:', { underline: true });
-        doc.text(`Payment ID: ${booking.payment.razorpayPaymentId || 'N/A'}`);
+        doc.text(
+          `Payment ID: ${booking.payment.providerRef || booking.payment.id || 'N/A'}`,
+        );
         doc.text(`Status: ${booking.payment.status}`);
       }
 
@@ -193,7 +236,13 @@ export class InvoicesService {
     });
   }
 
-  async getInvoiceByBookingId(bookingId: string) {
+  async getInvoiceByBookingId(
+    userId: string,
+    role: string | undefined,
+    bookingId: string,
+  ) {
+    await this.assertBookingInvoiceAccess(userId, role, bookingId);
+
     const invoice = await this.prisma.invoice.findUnique({
       where: { bookingId },
       include: { booking: true },
@@ -206,7 +255,11 @@ export class InvoicesService {
     return invoice;
   }
 
-  async getInvoiceById(invoiceId: string) {
+  async getInvoiceById(
+    userId: string,
+    role: string | undefined,
+    invoiceId: string,
+  ) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: { booking: true },
@@ -215,6 +268,8 @@ export class InvoicesService {
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
     }
+
+    await this.assertBookingInvoiceAccess(userId, role, invoice.bookingId);
 
     return invoice;
   }

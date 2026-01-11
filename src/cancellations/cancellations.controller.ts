@@ -7,13 +7,16 @@ import {
 } from '@nestjs/swagger';
 import { CancellationsService } from './cancellations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Cancellations')
 @ApiBearerAuth()
 @Controller('cancellations')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('CLIENT')
 export class CancellationsController {
   constructor(private cancellationsService: CancellationsService) {}
 

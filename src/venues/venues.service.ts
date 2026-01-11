@@ -13,6 +13,7 @@ interface SearchParams {
   guests?: number;
   minPrice?: number;
   maxPrice?: number;
+  amenities?: string[];
 }
 
 @Injectable()
@@ -116,7 +117,7 @@ export class VenuesService {
    * Search venues with optional filters (public)
    */
   async searchVenues(params: SearchParams) {
-    const { city, date, guests, minPrice, maxPrice } = params;
+    const { city, date, guests, minPrice, maxPrice, amenities } = params;
 
     // Build where clause
     const where: Prisma.VenueWhereInput = {
@@ -137,6 +138,10 @@ export class VenuesService {
       where.basePrice = {};
       if (minPrice) where.basePrice.gte = minPrice;
       if (maxPrice) where.basePrice.lte = maxPrice;
+    }
+
+    if (amenities?.length) {
+      where.amenities = { hasEvery: amenities };
     }
 
     // If date is provided, filter out blocked dates
@@ -198,6 +203,8 @@ export class VenuesService {
       total: transformed.length,
       page: 1,
       limit: 50,
+      totalPages:
+        transformed.length === 0 ? 0 : Math.ceil(transformed.length / 50),
     };
   }
 

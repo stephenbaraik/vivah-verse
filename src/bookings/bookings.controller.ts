@@ -15,13 +15,16 @@ import {
 } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
 @Controller('bookings')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('CLIENT')
 export class BookingsController {
   constructor(private bookingsService: BookingsService) {}
 

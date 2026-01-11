@@ -25,6 +25,47 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Local development (recommended)
+
+### 1) Start dependencies (Postgres + Redis + Meilisearch)
+
+From the repo root:
+
+```bash
+docker compose up -d
+```
+
+Services:
+- Postgres: `localhost:5432`
+- Redis: `localhost:6379`
+- Meilisearch: `localhost:7700` (master key: `dev-master-key`)
+
+### 2) Configure environment
+
+Create `backend/.env` (or `backend/.env.local`) using the example:
+
+```bash
+cp .env.example .env
+```
+
+The backend loads `.env.local` and `.env` automatically (see `ConfigModule.forRoot()` in `src/app.module.ts`).
+
+### 3) Install + migrate + run
+
+```bash
+npm install
+npx prisma migrate dev
+npm run start:dev
+```
+
+### 4) Health check
+
+`GET /health` reports DB + optional Redis/Search status.
+
+```bash
+curl -s http://localhost:3000/health | jq
+```
+
 ## Project setup
 
 ```bash

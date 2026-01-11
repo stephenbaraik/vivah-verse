@@ -21,7 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Vendors')
 @ApiBearerAuth()

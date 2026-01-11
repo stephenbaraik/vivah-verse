@@ -20,7 +20,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateWeddingDto } from './dto/create-wedding.dto';
 import { UpdateWeddingDto } from './dto/update-wedding.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Weddings')
 @ApiBearerAuth()

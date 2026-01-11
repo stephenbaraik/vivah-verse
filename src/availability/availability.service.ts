@@ -56,10 +56,60 @@ export class AvailabilityService {
     });
   }
 
-  async getVenueAvailability(venueId: string) {
+  async getVenueAvailability(
+    venueId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+
     return this.prisma.venueAvailability.findMany({
-      where: { venueId },
+      where: {
+        venueId,
+        ...(start && end
+          ? {
+              AND: [{ startDate: { lte: end } }, { endDate: { gte: start } }],
+            }
+          : {}),
+      },
       orderBy: { startDate: 'asc' },
+    });
+  }
+
+  async checkDateAvailability(venueId: string, date: string) {
+    const day = new Date(date);
+
+    const conflict = await this.prisma.venueAvailability.findFirst({
+      where: {
+        venueId,
+        startDate: { lte: day },
+        endDate: { gte: day },
+      },
+      select: { id: true },
+    });
+
+    return { available: !conflict };
+  }
+
+  async unblockDate(userId: string, venueId: string, date: string) {
+    const day = new Date(date);
+
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      include: { vendor: true },
+    });
+
+    if (!venue || venue.vendor.userId !== userId) {
+      throw new ForbiddenException('Not authorized for this venue');
+    }
+
+    await this.prisma.venueAvailability.deleteMany({
+      where: {
+        venueId,
+        startDate: { lte: day },
+        endDate: { gte: day },
+      },
     });
   }
 }

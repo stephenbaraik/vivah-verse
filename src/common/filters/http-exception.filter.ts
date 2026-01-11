@@ -6,7 +6,10 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Response, Request } from 'express';
+import * as Sentry from '@sentry/node';
+
+const sentryEnabled = Boolean(process.env.SENTRY_DSN);
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -15,6 +18,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | object = 'Internal server error';
@@ -29,6 +33,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       // Log internal errors but don't expose them
       this.logger.error('Unhandled exception', exception);
+    }
+
+    if (sentryEnabled && status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      Sentry.captureException(exception, {
+        tags: { scope: 'http-exception', status: String(status) },
+        extra: {
+          path: request?.url,
+          method: request?.method,
+          userAgent: request?.headers?.['user-agent'],
+        },
+      });
     }
 
     // Never expose stack traces or internal details in production

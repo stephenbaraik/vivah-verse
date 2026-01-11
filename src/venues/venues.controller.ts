@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateVenueDto } from './dto/create-venue.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 @ApiTags('Venues')
 @Controller('venues')

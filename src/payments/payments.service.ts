@@ -116,8 +116,20 @@ export class PaymentsService {
   }
 
   // Legacy confirm (for testing without Razorpay)
-  async confirmPayment(paymentId: string, providerRef: string) {
+  async confirmPayment(userId: string, paymentId: string, providerRef: string) {
     const result = await this.prisma.$transaction(async (tx) => {
+      const existingPayment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: { booking: { include: { wedding: true } } },
+      });
+
+      if (
+        !existingPayment ||
+        existingPayment.booking.wedding.userId !== userId
+      ) {
+        throw new ForbiddenException('Invalid payment');
+      }
+
       const payment = await tx.payment.update({
         where: { id: paymentId },
         data: {
@@ -164,7 +176,11 @@ export class PaymentsService {
     );
 
     try {
-      const invoice = await this.invoices.generateInvoice(result.bookingId);
+      const invoice = await this.invoices.generateInvoice(
+        'system',
+        'ADMIN',
+        result.bookingId,
+      );
       console.log(`✅ Invoice generated: ${invoice.invoiceNo}`);
     } catch (err) {
       console.error('Invoice generation failed:', err);
@@ -238,7 +254,11 @@ export class PaymentsService {
 
       // Generate invoice
       try {
-        const invoice = await this.invoices.generateInvoice(result.bookingId);
+        const invoice = await this.invoices.generateInvoice(
+          'system',
+          'ADMIN',
+          result.bookingId,
+        );
         console.log(`Invoice generated: ${invoice.invoiceNo}`);
       } catch (err) {
         console.error('Invoice generation failed:', err);

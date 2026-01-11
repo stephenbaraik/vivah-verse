@@ -18,9 +18,11 @@ import type { Request } from 'express';
 import * as crypto from 'crypto';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
-import { AuthRequest } from '../common/types/auth-request';
+import type { AuthRequest } from '../common/types/auth-request';
 
 type RazorpayWebhookBody = {
   event: string;
@@ -41,7 +43,8 @@ export class PaymentsController {
 
   @Post('initiate')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
   @ApiOperation({ summary: 'Initiate payment for a booking' })
   @ApiResponse({ status: 201, description: 'Razorpay order created' })
   initiatePayment(@Req() req: AuthRequest, @Body() dto: InitiatePaymentDto) {
@@ -51,10 +54,15 @@ export class PaymentsController {
   // Legacy confirm (for testing without Razorpay)
   @Post('confirm')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('CLIENT')
   @ApiOperation({ summary: 'Confirm payment (legacy/testing)' })
-  confirmPayment(@Body() dto: ConfirmPaymentDto) {
-    return this.paymentsService.confirmPayment(dto.paymentId, dto.providerRef);
+  confirmPayment(@Req() req: AuthRequest, @Body() dto: ConfirmPaymentDto) {
+    return this.paymentsService.confirmPayment(
+      req.user.userId,
+      dto.paymentId,
+      dto.providerRef,
+    );
   }
 
   // Razorpay webhook (NO AUTH - uses signature verification)

@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
@@ -7,7 +9,11 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private transporter: Transporter;
 
-  constructor() {
+  constructor(
+    @Optional()
+    @InjectQueue('notifications')
+    private readonly notificationsQueue?: Queue,
+  ) {
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: Number(process.env.EMAIL_PORT),
@@ -19,7 +25,7 @@ export class NotificationsService {
     });
   }
 
-  async sendEmail(to: string, subject: string, html: string) {
+  async sendEmailNow(to: string, subject: string, html: string) {
     try {
       await this.transporter.sendMail({
         from: `"Vivah Verse" <${process.env.EMAIL_USER}>`,
@@ -32,6 +38,33 @@ export class NotificationsService {
       this.logger.error(`Failed to send email to ${to}`, error as Error);
       // Don't throw - notifications should not block core logic
     }
+  }
+
+  async sendEmail(to: string, subject: string, html: string) {
+    if (this.notificationsQueue) {
+      try {
+        await this.notificationsQueue.add(
+          'email',
+          { to, subject, html },
+          {
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 5_000 },
+            removeOnComplete: true,
+            removeOnFail: false,
+          },
+        );
+        this.logger.log(`Email queued to ${to}: ${subject}`);
+      } catch (error) {
+        this.logger.error(
+          'Failed to queue email; falling back to direct send',
+          error as Error,
+        );
+        await this.sendEmailNow(to, subject, html);
+      }
+      return;
+    }
+
+    await this.sendEmailNow(to, subject, html);
   }
 
   async bookingConfirmed(email: string, venue: string, date: Date) {

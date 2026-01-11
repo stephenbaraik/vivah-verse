@@ -6,7 +6,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, InvoicesModule],
+  imports: [PrismaModule, NotificationsModule.register(), InvoicesModule],
   controllers: [PaymentsController],
   providers: [PaymentsService],
   exports: [PaymentsService],

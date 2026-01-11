@@ -6,6 +6,7 @@ import {
   UseGuards,
   Res,
   NotFoundException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthRequest } from '../common/types/auth-request';
 import type { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -31,22 +33,75 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Generate invoice for a booking' })
   @ApiParam({ name: 'bookingId', description: 'Booking ID' })
   @ApiResponse({ status: 201, description: 'Invoice generated' })
-  async generateInvoice(@Param('bookingId') bookingId: string) {
-    return this.invoicesService.generateInvoice(bookingId);
+  async generateInvoice(
+    @Req() req: AuthRequest,
+    @Param('bookingId') bookingId: string,
+  ) {
+    return this.invoicesService.generateInvoice(
+      req.user.userId,
+      req.user.role,
+      bookingId,
+    );
   }
 
   @Get('booking/:bookingId')
   @ApiOperation({ summary: 'Get invoice by booking ID' })
   @ApiParam({ name: 'bookingId', description: 'Booking ID' })
-  async getInvoiceByBooking(@Param('bookingId') bookingId: string) {
-    return this.invoicesService.getInvoiceByBookingId(bookingId);
+  async getInvoiceByBooking(
+    @Req() req: AuthRequest,
+    @Param('bookingId') bookingId: string,
+  ) {
+    return this.invoicesService.getInvoiceByBookingId(
+      req.user.userId,
+      req.user.role,
+      bookingId,
+    );
   }
 
   @Get(':invoiceId')
   @ApiOperation({ summary: 'Get invoice by ID' })
   @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
-  async getInvoice(@Param('invoiceId') invoiceId: string) {
-    return this.invoicesService.getInvoiceById(invoiceId);
+  async getInvoice(
+    @Req() req: AuthRequest,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.invoicesService.getInvoiceById(
+      req.user.userId,
+      req.user.role,
+      invoiceId,
+    );
+  }
+
+  @Get('booking/:bookingId/download')
+  @ApiOperation({ summary: 'Download invoice PDF by booking ID' })
+  @ApiParam({ name: 'bookingId', description: 'Booking ID' })
+  @ApiResponse({ status: 200, description: 'PDF file' })
+  async downloadInvoiceByBooking(
+    @Req() req: AuthRequest,
+    @Param('bookingId') bookingId: string,
+    @Res() res: Response,
+  ) {
+    const invoice = await this.invoicesService.getInvoiceByBookingId(
+      req.user.userId,
+      req.user.role,
+      bookingId,
+    );
+
+    const pdfFilename = path.basename(invoice.pdfUrl);
+    const pdfPath = path.join(process.cwd(), 'invoices', pdfFilename);
+
+    if (!fs.existsSync(pdfPath)) {
+      throw new NotFoundException('Invoice PDF not found');
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${invoice.invoiceNo}.pdf"`,
+    );
+
+    const fileStream = fs.createReadStream(pdfPath);
+    fileStream.pipe(res);
   }
 
   @Get(':invoiceId/download')
@@ -54,10 +109,15 @@ export class InvoicesController {
   @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'PDF file' })
   async downloadInvoice(
+    @Req() req: AuthRequest,
     @Param('invoiceId') invoiceId: string,
     @Res() res: Response,
   ) {
-    const invoice = await this.invoicesService.getInvoiceById(invoiceId);
+    const invoice = await this.invoicesService.getInvoiceById(
+      req.user.userId,
+      req.user.role,
+      invoiceId,
+    );
 
     const pdfFilename = path.basename(invoice.pdfUrl);
     const pdfPath = path.join(process.cwd(), 'invoices', pdfFilename);
