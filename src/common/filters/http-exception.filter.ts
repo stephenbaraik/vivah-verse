@@ -7,9 +7,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
-import * as Sentry from '@sentry/node';
-
-const sentryEnabled = Boolean(process.env.SENTRY_DSN);
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -19,6 +16,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+
+    const requestId = (request as any)?.requestId;
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | object = 'Internal server error';
@@ -32,17 +31,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
           : exceptionResponse;
     } else {
       // Log internal errors but don't expose them
-      this.logger.error('Unhandled exception', exception);
+      this.logger.error('Unhandled exception', {
+        requestId,
+        path: request?.url,
+        method: request?.method,
+        error: exception,
+      });
     }
 
-    if (sentryEnabled && status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      Sentry.captureException(exception, {
-        tags: { scope: 'http-exception', status: String(status) },
-        extra: {
-          path: request?.url,
-          method: request?.method,
-          userAgent: request?.headers?.['user-agent'],
-        },
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      // Log to console/file instead of Sentry
+      this.logger.error('Server error', {
+        requestId,
+        path: request?.url,
+        method: request?.method,
+        status,
+        error: exception,
       });
     }
 
@@ -52,12 +56,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
         statusCode: status,
         message: 'Internal server error',
         timestamp: new Date().toISOString(),
+        requestId,
       });
     } else {
       response.status(status).json({
         statusCode: status,
         ...(typeof message === 'object' ? message : { message }),
         timestamp: new Date().toISOString(),
+        requestId,
       });
     }
   }

@@ -1,12 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { PrismaService } from './prisma/prisma.service.js';
 
 @Controller()
 export class AppController {
-  constructor(private prisma: PrismaService) {}
-
-  @Get('users')
-  async getUsers() {
-    return this.prisma.user.findMany();
+  @Get()
+  root() {
+    return {
+      name: 'Vivah Verse API',
+      status: 'ok',
+      docs: '/api',
+      graphql: '/graphql',
+      health: '/health',
+    };
   }
 }

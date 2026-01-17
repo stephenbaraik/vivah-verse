@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Booking, Venue, Wedding, User, Payment } from '@prisma/client';
@@ -11,8 +12,7 @@ import * as path from 'path';
 
 type BookingWithRelations = Booking & {
   venue: Venue;
-  wedding: Wedding & { user: User };
-  payment: Payment | null;
+  wedding: Wedding & { user: User; payments: Payment[] };
 };
 
 @Injectable()
@@ -63,8 +63,12 @@ export class InvoicesService {
       where: { id: bookingId },
       include: {
         venue: true,
-        wedding: { include: { user: true } },
-        payment: true,
+        wedding: { 
+          include: { 
+            user: true,
+            payments: true,
+          } 
+        },
         invoice: true,
       },
     });
@@ -78,8 +82,14 @@ export class InvoicesService {
       return booking.invoice;
     }
 
-    // Calculate GST breakdown - use venue base price (already in paise)
-    const totalAmount = booking.venue.basePrice * 100; // convert to paise
+    // Find the successful payment for this wedding
+    const payment = booking.wedding.payments.find(p => p.status === 'SUCCESS');
+    if (!payment) {
+      throw new BadRequestException('No successful payment found for this booking');
+    }
+
+    // Calculate GST breakdown - use payment amount (already in rupees)
+    const totalAmount = payment.amount * 100; // convert to paise
     const subtotal = Math.round(totalAmount / (1 + this.GST_RATE));
     const gstAmount = totalAmount - subtotal;
 
@@ -213,12 +223,13 @@ export class InvoicesService {
       doc.moveDown(2);
 
       // Payment details
-      if (booking.payment) {
+      const payment = booking.wedding.payments[0];
+      if (payment) {
         doc.text('Payment Details:', { underline: true });
         doc.text(
-          `Payment ID: ${booking.payment.providerRef || booking.payment.id || 'N/A'}`,
+          `Payment ID: ${payment.providerRef || payment.id || 'N/A'}`,
         );
-        doc.text(`Status: ${booking.payment.status}`);
+        doc.text(`Status: ${payment.status}`);
       }
 
       doc.moveDown(2);

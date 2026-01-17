@@ -6,9 +6,9 @@ export class CreateWeddingDto {
   @IsDateString()
   weddingDate: string;
 
-  @ApiProperty({ example: 'Jaipur' })
+  @ApiProperty({ example: 'Jaipur, Rajasthan' })
   @IsString()
-  city: string;
+  location: string;
 
   @ApiProperty({ example: 300 })
   @IsInt()
@@ -18,5 +18,5 @@ export class CreateWeddingDto {
   @ApiProperty({ example: 2500000 })
   @IsInt()
   @Min(0)
-  budgetEstimate: number;
+  budget: number;
 }

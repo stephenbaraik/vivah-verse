@@ -21,17 +21,92 @@ export class WeddingsService {
       data: {
         userId,
         weddingDate: new Date(data.weddingDate),
-        city: data.city,
+        location: data.location,
         guestCount: data.guestCount,
-        budgetEstimate: data.budgetEstimate,
+        budget: data.budget,
+      },
+      include: {
+        planner: true,
+        tasks: true,
+        timelines: true,
+        payments: true,
+        contracts: true,
       },
     });
   }
 
-  async getMyWeddings(userId: string) {
+  async getPlannerWeddings(plannerId: string) {
     return this.prisma.wedding.findMany({
-      where: { userId },
+      where: { plannerId },
+      include: {
+        user: true, // couple
+        planner: true,
+        tasks: {
+          include: {
+            assignee: true,
+          },
+        },
+        timelines: true,
+        payments: {
+          include: {
+            payer: true,
+            payee: true,
+          },
+        },
+        contracts: {
+          include: {
+            vendor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { weddingDate: 'asc' },
+    });
+  }
+
+  async updateWeddingInternal(weddingId: string, data: UpdateWeddingDto) {
+    // Validate new wedding date if provided
+    if (data.weddingDate && new Date(data.weddingDate) < new Date()) {
+      throw new BadRequestException('Wedding date must be in the future');
+    }
+
+    return this.prisma.wedding.update({
+      where: { id: weddingId },
+      data: {
+        ...(data.weddingDate && { weddingDate: new Date(data.weddingDate) }),
+        ...(data.location && { location: data.location }),
+        ...(data.guestCount !== undefined && { guestCount: data.guestCount }),
+        ...(data.budget !== undefined && { budget: data.budget }),
+        ...(data.plannerId !== undefined && { plannerId: data.plannerId }),
+        ...(data.status && { status: data.status }),
+      },
+      include: {
+        planner: true,
+        tasks: {
+          include: {
+            assignee: true,
+          },
+        },
+        timelines: true,
+        payments: {
+          include: {
+            payer: true,
+            payee: true,
+          },
+        },
+        contracts: {
+          include: {
+            vendor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -62,9 +137,98 @@ export class WeddingsService {
       where: { id: weddingId },
       data: {
         ...(data.weddingDate && { weddingDate: new Date(data.weddingDate) }),
-        ...(data.city && { city: data.city }),
+        ...(data.location && { location: data.location }),
         ...(data.guestCount !== undefined && { guestCount: data.guestCount }),
+        ...(data.budget !== undefined && { budget: data.budget }),
+        ...(data.plannerId !== undefined && { plannerId: data.plannerId }),
+        ...(data.status && { status: data.status }),
       },
+      include: {
+        planner: true,
+        tasks: {
+          include: {
+            assignee: true,
+          },
+        },
+        timelines: true,
+        payments: {
+          include: {
+            payer: true,
+            payee: true,
+          },
+        },
+        contracts: {
+          include: {
+            vendor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getMyWeddings(userId: string) {
+    return this.prisma.wedding.findMany({
+      where: { userId },
+      include: {
+        planner: true,
+        tasks: {
+          include: {
+            assignee: true,
+          },
+        },
+        timelines: true,
+        payments: {
+          include: {
+            payer: true,
+            payee: true,
+          },
+        },
+        contracts: {
+          include: {
+            vendor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { weddingDate: 'asc' },
+    });
+  }
+
+  async getAllWeddings() {
+    return this.prisma.wedding.findMany({
+      include: {
+        user: true,
+        planner: true,
+        tasks: {
+          include: {
+            assignee: true,
+          },
+        },
+        timelines: true,
+        payments: {
+          include: {
+            payer: true,
+            payee: true,
+          },
+        },
+        contracts: {
+          include: {
+            vendor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { weddingDate: 'asc' },
     });
   }
 }

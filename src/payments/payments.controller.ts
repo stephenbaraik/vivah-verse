@@ -44,11 +44,11 @@ export class PaymentsController {
   @Post('initiate')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('CLIENT')
-  @ApiOperation({ summary: 'Initiate payment for a booking' })
+  @Roles('CLIENT', 'PLANNER', 'OPS_MANAGER', 'FINANCE', 'ADMIN')
+  @ApiOperation({ summary: 'Initiate payment for a wedding' })
   @ApiResponse({ status: 201, description: 'Razorpay order created' })
   initiatePayment(@Req() req: AuthRequest, @Body() dto: InitiatePaymentDto) {
-    return this.paymentsService.initiatePayment(req.user.userId, dto.bookingId);
+    return this.paymentsService.initiateWeddingPayment(req.user.userId, dto);
   }
 
   // Legacy confirm (for testing without Razorpay)

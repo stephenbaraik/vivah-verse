@@ -20,8 +20,12 @@ export class CancellationsService {
       const booking = await tx.booking.findUnique({
         where: { id: bookingId },
         include: {
-          wedding: { include: { user: true } },
-          payment: true,
+          wedding: { 
+            include: { 
+              user: true,
+              payments: true,
+            } 
+          },
         },
       });
 
@@ -33,11 +37,11 @@ export class CancellationsService {
         throw new BadRequestException('Booking cannot be cancelled');
       }
 
-      if (!booking.payment) {
+      // Find the payment for this booking (assuming there's a payment for venue booking)
+      const payment = booking.wedding.payments.find(p => p.status === 'SUCCESS');
+      if (!payment) {
         throw new BadRequestException('No payment found for this booking');
       }
-
-      const payment = booking.payment;
 
       // 2️⃣ Calculate refund
       const daysBefore =

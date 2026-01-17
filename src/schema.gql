@@ -1,0 +1,11 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Query {
+  """Current API environment"""
+  environment: String!
+
+  """Lightweight liveness probe for GraphQL"""
+  ping: String!
+}

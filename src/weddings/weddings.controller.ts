@@ -26,24 +26,40 @@ import type { AuthRequest } from '../common/types/auth-request';
 @ApiBearerAuth()
 @Controller('weddings')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('CLIENT')
 export class WeddingsController {
   constructor(private weddingsService: WeddingsService) {}
 
   @Post()
+  @Roles('CLIENT')
   @ApiOperation({ summary: 'Create a wedding' })
   @ApiResponse({ status: 201, description: 'Wedding created' })
   createWedding(@Req() req: AuthRequest, @Body() dto: CreateWeddingDto) {
     return this.weddingsService.createWedding(req.user.userId, dto);
   }
 
-  @Get()
+  @Get('my')
+  @Roles('CLIENT')
   @ApiOperation({ summary: 'Get my weddings' })
   getMyWeddings(@Req() req: AuthRequest) {
     return this.weddingsService.getMyWeddings(req.user.userId);
   }
 
+  @Get('assigned')
+  @Roles('PLANNER', 'OPS_MANAGER', 'ADMIN')
+  @ApiOperation({ summary: 'Get assigned weddings (for planners)' })
+  getAssignedWeddings(@Req() req: AuthRequest) {
+    return this.weddingsService.getPlannerWeddings(req.user.userId);
+  }
+
+  @Get('all')
+  @Roles('OPS_MANAGER', 'ADMIN')
+  @ApiOperation({ summary: 'Get all weddings (for ops managers and admins)' })
+  getAllWeddings() {
+    return this.weddingsService.getAllWeddings();
+  }
+
   @Patch(':id')
+  @Roles('CLIENT', 'PLANNER', 'OPS_MANAGER', 'ADMIN')
   @ApiOperation({ summary: 'Update a wedding' })
   @ApiResponse({ status: 200, description: 'Wedding updated' })
   updateWedding(
@@ -51,6 +67,11 @@ export class WeddingsController {
     @Param('id') id: string,
     @Body() dto: UpdateWeddingDto,
   ) {
-    return this.weddingsService.updateWedding(req.user.userId, id, dto);
+    // For clients, check ownership. For internal users, allow updates.
+    if (req.user.role === 'CLIENT') {
+      return this.weddingsService.updateWedding(req.user.userId, id, dto);
+    }
+    // For internal users, allow direct updates
+    return this.weddingsService.updateWeddingInternal(id, dto);
   }
 }

@@ -4,8 +4,11 @@ import {
   IsInt,
   Min,
   IsDateString,
+  IsUUID,
+  IsEnum,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { WeddingStatus } from '@prisma/client';
 
 export class UpdateWeddingDto {
   @ApiPropertyOptional({ description: 'Wedding date' })
@@ -13,14 +16,30 @@ export class UpdateWeddingDto {
   @IsDateString()
   weddingDate?: string;
 
-  @ApiPropertyOptional({ description: 'Wedding city' })
+  @ApiPropertyOptional({ description: 'Wedding location' })
   @IsOptional()
   @IsString()
-  city?: string;
+  location?: string;
 
   @ApiPropertyOptional({ description: 'Expected guest count' })
   @IsOptional()
   @IsInt()
   @Min(1)
   guestCount?: number;
+
+  @ApiPropertyOptional({ description: 'Wedding budget' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  budget?: number;
+
+  @ApiPropertyOptional({ description: 'Assigned planner ID' })
+  @IsOptional()
+  @IsUUID()
+  plannerId?: string;
+
+  @ApiPropertyOptional({ description: 'Wedding status', enum: WeddingStatus })
+  @IsOptional()
+  @IsEnum(WeddingStatus)
+  status?: WeddingStatus;
 }

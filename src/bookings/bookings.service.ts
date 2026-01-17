@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -42,7 +43,7 @@ export class BookingsService {
           select: {
             id: true,
             weddingDate: true,
-            city: true,
+            location: true,
             guestCount: true,
           },
         },
@@ -88,38 +89,47 @@ export class BookingsService {
     const date = wedding.weddingDate;
 
     // 2️⃣ Transaction: availability check + booking
-    return this.prisma.$transaction(async (tx) => {
-      // Check availability
-      const blocked = await tx.venueAvailability.findFirst({
-        where: {
-          venueId,
-          AND: [{ startDate: { lte: date } }, { endDate: { gte: date } }],
-        },
-      });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Check availability
+        const blocked = await tx.venueAvailability.findFirst({
+          where: {
+            venueId,
+            AND: [{ startDate: { lte: date } }, { endDate: { gte: date } }],
+          },
+        });
 
-      if (blocked) {
-        throw new BadRequestException('Venue not available on this date');
+        if (blocked) {
+          throw new BadRequestException('Venue not available on this date');
+        }
+
+        // Create booking
+        const booking = await tx.booking.create({
+          data: {
+            weddingId,
+            venueId,
+            weddingDate: date,
+          },
+        });
+
+        // Block venue for that date
+        await tx.venueAvailability.create({
+          data: {
+            venueId,
+            startDate: date,
+            endDate: date,
+          },
+        });
+
+        return booking;
+      });
+    } catch (error) {
+      // Translate duplicate booking attempts into a clear 409
+      if ((error as { code?: string; meta?: { target?: string[] } })?.code === 'P2002') {
+        throw new ConflictException('This wedding already has a booking');
       }
 
-      // Create booking
-      const booking = await tx.booking.create({
-        data: {
-          weddingId,
-          venueId,
-          weddingDate: date,
-        },
-      });
-
-      // Block venue for that date
-      await tx.venueAvailability.create({
-        data: {
-          venueId,
-          startDate: date,
-          endDate: date,
-        },
-      });
-
-      return booking;
-    });
+      throw error;
+    }
   }
 }

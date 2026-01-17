@@ -16,6 +16,9 @@ datasource db {
 enum UserRole {
   CLIENT
   VENDOR
+  PLANNER
+  OPS_MANAGER
+  FINANCE
   ADMIN
 }
 
@@ -30,10 +33,14 @@ model User {
   updatedAt DateTime @updatedAt
 
   // 🔑 OPPOSITE RELATION FIELDS (REQUIRED)
-  profile  UserProfile?
-  weddings Wedding[]
-  vendor   Vendor?
-  sessions Session[]
+  profile         UserProfile?
+  weddings        Wedding[]    // weddings as couple
+  plannerWeddings Wedding[]    @relation("PlannerWeddings") // weddings as planner
+  vendor          Vendor?
+  sessions        Session[]
+  paidPayments    Payment[]    @relation("PayerPayments")  // payments made by this user
+  receivedPayments Payment[]   @relation("PayeePayments") // payments received by this user
+  assignedTasks   Task[]       // tasks assigned to this user
 }
 
 model Session {
@@ -57,6 +64,14 @@ enum VendorStatus {
   REJECTED
 }
 
+enum WeddingStatus {
+  LEAD
+  BOOKED
+  PLANNING
+  EXECUTION
+  COMPLETED
+}
+
 model Vendor {
   id           String       @id @default(uuid())
   userId       String       @unique
@@ -66,6 +81,7 @@ model Vendor {
 
   user         User         @relation(fields: [userId], references: [id])
   venues       Venue[]
+  contracts    Contract[]
 }
 
 enum VenueStatus {
@@ -121,16 +137,27 @@ model UserProfile {
 }
 
 model Wedding {
-  id             String   @id @default(uuid())
-  userId         String
-  weddingDate    DateTime
-  city           String
+  id             String        @id @default(uuid())
+  userId         String        // couple_id
+  plannerId      String?       // assigned planner
+  weddingDate    DateTime      // date
+  location       String        @default("") // city or more detailed location
   guestCount     Int
-  budgetEstimate Int
-  createdAt      DateTime @default(now())
+  budget         Int           @default(0) // budgetEstimate -> budget
+  status         WeddingStatus @default(LEAD)
+  createdAt      DateTime      @default(now())
 
-  user           User     @relation(fields: [userId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  planner        User?         @relation("PlannerWeddings", fields: [plannerId], references: [id])
   booking        Booking?
+  tasks          Task[]
+  timelines      Timeline[]
+  payments       Payment[]
+  contracts      Contract[]
+
+  @@index([userId])
+  @@index([plannerId])
+  @@index([status])
 }
 
 enum BookingStatus {
@@ -149,7 +176,6 @@ model Booking {
 
   wedding     Wedding       @relation(fields: [weddingId], references: [id])
   venue       Venue         @relation(fields: [venueId], references: [id])
-  payment     Payment?
   invoice     Invoice?
 
   // VenueAvailability handles date blocking; allow rebooking after cancellation
@@ -164,17 +190,23 @@ enum PaymentStatus {
 
 model Payment {
   id          String        @id @default(uuid())
-  bookingId   String        @unique
+  weddingId   String        // changed from bookingId
   amount      Int
+  paidBy      String        // user id who paid
+  paidTo      String        // user id who received
   provider    String
   providerRef String?
   status      PaymentStatus @default(INITIATED)
   createdAt   DateTime      @default(now())
 
-  booking     Booking       @relation(fields: [bookingId], references: [id])
+  wedding     Wedding       @relation(fields: [weddingId], references: [id])
+  payer       User          @relation("PayerPayments", fields: [paidBy], references: [id])
+  payee       User          @relation("PayeePayments", fields: [paidTo], references: [id])
   refund      Refund?
 
-  @@index([bookingId])
+  @@index([weddingId])
+  @@index([paidBy])
+  @@index([paidTo])
 }
 
 enum RefundStatus {
@@ -205,5 +237,65 @@ model Invoice {
   createdAt   DateTime @default(now())
 
   booking     Booking  @relation(fields: [bookingId], references: [id])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskCategory {
+  VENUE
+  DECOR
+  CATERING
+  PHOTOGRAPHY
+  MUSIC
+  OTHER
+}
+
+model Task {
+  id         String      @id @default(uuid())
+  weddingId  String
+  title      String
+  category   TaskCategory
+  assignedTo String?     // user id (planner or vendor)
+  dueDate    DateTime?
+  status     TaskStatus  @default(TODO)
+  createdAt  DateTime    @default(now())
+
+  wedding    Wedding     @relation(fields: [weddingId], references: [id])
+  assignee   User?       @relation(fields: [assignedTo], references: [id])
+
+  @@index([weddingId])
+  @@index([assignedTo])
+  @@index([status])
+}
+
+model Timeline {
+  id         String   @id @default(uuid())
+  weddingId  String
+  milestone  String
+  dueDate    DateTime
+  createdAt  DateTime @default(now())
+
+  wedding    Wedding  @relation(fields: [weddingId], references: [id])
+
+  @@index([weddingId])
+}
+
+model Contract {
+  id        String   @id @default(uuid())
+  weddingId String
+  vendorId  String
+  terms     String
+  signed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  wedding   Wedding  @relation(fields: [weddingId], references: [id])
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+
+  @@index([weddingId])
+  @@index([vendorId])
 }
 

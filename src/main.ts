@@ -3,28 +3,27 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
 import * as express from 'express';
 import { join } from 'path';
-import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
-
-const sentryEnabled = Boolean(process.env.SENTRY_DSN);
-
-if (sentryEnabled) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV,
-    release: process.env.SENTRY_RELEASE,
-    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? '0.1'),
-    profilesSampleRate: Number(process.env.SENTRY_PROFILES_SAMPLE_RATE ?? '0.1'),
-    integrations: [nodeProfilingIntegration()],
-  });
-}
+import { randomUUID } from 'crypto';
+import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true, // Required for webhook signature verification
+  });
+
+  app.useLogger(app.get(Logger));
+
+  // Correlate requests with a stable request id
+  app.use((req, res, next) => {
+    const rid =
+      (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+    (req as any).requestId = rid;
+    res.setHeader('x-request-id', rid);
+    next();
   });
 
   // Security headers (XSS, clickjacking, MIME sniffing protection)
@@ -51,6 +50,8 @@ async function bootstrap() {
     }),
   );
 
+  // Structured request logging
+  app.useGlobalInterceptors(new LoggingInterceptor());
   // Global exception filter (hides internal errors)
   app.useGlobalFilters(new HttpExceptionFilter());
 

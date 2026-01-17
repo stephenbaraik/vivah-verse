@@ -67,20 +67,20 @@ export class NotificationsService {
     await this.sendEmailNow(to, subject, html);
   }
 
-  async bookingConfirmed(email: string, venue: string, date: Date) {
+  async paymentConfirmed(email: string, amount: number, weddingId: string) {
     return this.sendEmail(
       email,
-      '🎉 Booking Confirmed - Vivah Verse',
+      '💳 Payment Confirmed - Vivah Verse',
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #e91e63;">Your booking is confirmed!</h2>
+          <h2 style="color: #4caf50;">Payment Confirmed!</h2>
           <p>Dear Customer,</p>
-          <p>We're thrilled to confirm your venue booking.</p>
+          <p>Your payment has been successfully processed.</p>
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Venue:</strong> ${venue}</p>
-            <p><strong>Date:</strong> ${date.toDateString()}</p>
+            <p><strong>Amount:</strong> ₹${amount}</p>
+            <p><strong>Wedding ID:</strong> ${weddingId}</p>
           </div>
-          <p>Thank you for choosing Vivah Verse for your special day!</p>
+          <p>Thank you for your payment!</p>
           <p style="color: #666;">— The Vivah Verse Team</p>
         </div>
       `,

@@ -82,9 +82,14 @@ export class VendorsService {
                     user: {
                       select: { name: true, email: true },
                     },
+                    payments: {
+                      where: {
+                        paidTo: userId,
+                        status: 'SUCCESS',
+                      },
+                    },
                   },
                 },
-                payment: true,
               },
               orderBy: { weddingDate: 'asc' },
               take: 5,
@@ -107,7 +112,7 @@ export class VendorsService {
 
     // Calculate earnings
     const totalEarnings = confirmedBookings.reduce((sum, b) => {
-      return sum + (b.payment?.amount || 0);
+      return sum + (b.wedding.payments[0]?.amount || 0);
     }, 0);
 
     // Get upcoming bookings
@@ -144,7 +149,18 @@ export class VendorsService {
         venues: {
           include: {
             bookings: {
-              include: { payment: true },
+              include: {
+                wedding: {
+                  include: {
+                    payments: {
+                      where: {
+                        paidTo: userId,
+                        status: 'SUCCESS',
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -160,7 +176,7 @@ export class VendorsService {
       (b) => b.status === 'CONFIRMED',
     );
     const totalEarnings = confirmedBookings.reduce(
-      (sum, b) => sum + (b.payment?.amount || 0),
+      (sum, b) => sum + (b.wedding.payments[0]?.amount || 0),
       0,
     );
 
@@ -212,9 +228,14 @@ export class VendorsService {
           wedding: {
             include: {
               user: { select: { name: true, email: true, phone: true } },
+              payments: {
+                where: {
+                  paidTo: userId,
+                  status: 'SUCCESS',
+                },
+              },
             },
           },
-          payment: true,
         },
         orderBy: { weddingDate: 'desc' },
         skip: (page - 1) * limit,
@@ -235,8 +256,8 @@ export class VendorsService {
           phone: b.wedding?.user?.phone,
         },
         guestCount: b.wedding?.guestCount || 0,
-        amount: b.payment?.amount || 0,
-        paymentStatus: b.payment?.status,
+        amount: b.wedding?.payments[0]?.amount || 0,
+        paymentStatus: b.wedding?.payments[0]?.status,
         createdAt: b.createdAt,
       })),
       total,
@@ -357,18 +378,25 @@ export class VendorsService {
       where: {
         venueId: { in: venueIds.map((v) => v.id) },
         status: 'CONFIRMED',
-        payment: { status: 'SUCCESS' },
       },
       include: {
-        payment: true,
+        wedding: {
+          include: {
+            payments: {
+              where: {
+                paidTo: userId,
+                status: 'SUCCESS',
+              },
+            },
+          },
+        },
         venue: { select: { name: true } },
-        wedding: true,
       },
       orderBy: { weddingDate: 'desc' },
     });
 
     const totalEarnings = bookingsWithPayments.reduce(
-      (sum, b) => sum + (b.payment?.amount || 0),
+      (sum, b) => sum + (b.wedding.payments[0]?.amount || 0),
       0,
     );
 
@@ -377,7 +405,7 @@ export class VendorsService {
     bookingsWithPayments.forEach((b) => {
       const month = new Date(b.createdAt).toISOString().slice(0, 7);
       monthlyEarnings[month] =
-        (monthlyEarnings[month] || 0) + (b.payment?.amount || 0);
+        (monthlyEarnings[month] || 0) + (b.wedding.payments[0]?.amount || 0);
     });
 
     return {
@@ -387,9 +415,9 @@ export class VendorsService {
         .map(([month, amount]) => ({ month, amount }))
         .sort((a, b) => b.month.localeCompare(a.month)),
       recentPayments: bookingsWithPayments.slice(0, 10).map((b) => ({
-        id: b.payment?.id,
-        amount: b.payment?.amount || 0,
-        date: b.payment?.createdAt,
+        id: b.wedding.payments[0]?.id,
+        amount: b.wedding.payments[0]?.amount || 0,
+        date: b.wedding.payments[0]?.createdAt,
         venueName: b.venue.name,
         weddingDate: b.weddingDate,
       })),

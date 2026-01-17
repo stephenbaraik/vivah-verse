@@ -1,8 +1,17 @@
-import { IsUUID } from 'class-validator';
+import { IsUUID, IsInt, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class InitiatePaymentDto {
-  @ApiProperty({ description: 'Booking ID to initiate payment for' })
+  @ApiProperty({ description: 'Wedding ID for the payment' })
   @IsUUID()
-  bookingId: string;
+  weddingId: string;
+
+  @ApiProperty({ description: 'Amount to pay in rupees' })
+  @IsInt()
+  @Min(1)
+  amount: number;
+
+  @ApiProperty({ description: 'Payee user ID (who receives the payment)' })
+  @IsUUID()
+  payeeId: string;
 }

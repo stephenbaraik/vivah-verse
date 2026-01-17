@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentStatus, BookingStatus } from '@prisma/client';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
@@ -41,22 +42,26 @@ export class PaymentsService {
     }
   }
 
-  async initiatePayment(userId: string, bookingId: string) {
-    // 1️⃣ Verify booking ownership
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { wedding: true, venue: true },
+  async initiateWeddingPayment(userId: string, dto: InitiatePaymentDto) {
+    const { weddingId, amount, payeeId } = dto;
+
+    // 1️⃣ Verify wedding exists and user can make payment
+    const wedding = await this.prisma.wedding.findUnique({
+      where: { id: weddingId },
+      include: { user: true },
     });
 
-    if (!booking || booking.wedding.userId !== userId) {
-      throw new ForbiddenException('Invalid booking');
+    if (!wedding) {
+      throw new BadRequestException('Wedding not found');
     }
 
-    if (booking.status !== BookingStatus.PENDING) {
-      throw new BadRequestException('Booking is not payable');
+    // Allow clients to pay for their own weddings, or internal users
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user?.role === 'CLIENT' && wedding.userId !== userId) {
+      throw new ForbiddenException('You can only pay for your own weddings');
     }
 
-    const amount = booking.venue.basePrice * 100; // paise
+    const amountPaise = amount * 100; // Convert to paise
 
     // TEST MODE: Skip Razorpay API call
     if (this.isTestMode) {
@@ -64,23 +69,25 @@ export class PaymentsService {
 
       const payment = await this.prisma.payment.create({
         data: {
-          bookingId,
-          amount: booking.venue.basePrice,
+          weddingId,
+          amount,
+          paidBy: userId,
+          paidTo: payeeId,
           provider: 'TEST',
           providerRef: testOrderId,
         },
       });
 
       console.log({
-        event: 'PAYMENT_INITIATED_TEST_MODE',
-        bookingId,
+        event: 'WEDDING_PAYMENT_INITIATED_TEST_MODE',
+        weddingId,
         paymentId: payment.id,
       });
 
       return {
         orderId: testOrderId,
         razorpayKey: 'test_mode',
-        amount,
+        amount: amountPaise,
         currency: 'INR',
         paymentId: payment.id,
         testMode: true,
@@ -90,26 +97,34 @@ export class PaymentsService {
 
     // 2️⃣ Create Razorpay order (LIVE MODE)
     const order = await this.razorpay!.orders.create({
-      amount,
+      amount: amountPaise,
       currency: 'INR',
-      receipt: bookingId,
+      receipt: weddingId,
     });
 
     // 3️⃣ Save payment record
     const payment = await this.prisma.payment.create({
       data: {
-        bookingId,
-        amount: booking.venue.basePrice,
+        weddingId,
+        amount,
+        paidBy: userId,
+        paidTo: payeeId,
         provider: 'RAZORPAY',
         providerRef: order.id,
       },
     });
 
-    // 4️⃣ Return data for frontend checkout
+    console.log({
+      event: 'WEDDING_PAYMENT_INITIATED_LIVE_MODE',
+      weddingId,
+      paymentId: payment.id,
+      orderId: order.id,
+    });
+
     return {
       orderId: order.id,
       razorpayKey: process.env.RAZORPAY_KEY_ID,
-      amount,
+      amount: amountPaise,
       currency: 'INR',
       paymentId: payment.id,
     };
@@ -120,12 +135,16 @@ export class PaymentsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const existingPayment = await tx.payment.findUnique({
         where: { id: paymentId },
-        include: { booking: { include: { wedding: true } } },
+        include: {
+          wedding: { include: { user: true } },
+          payer: true,
+          payee: true,
+        },
       });
 
       if (
         !existingPayment ||
-        existingPayment.booking.wedding.userId !== userId
+        existingPayment.payer.id !== userId
       ) {
         throw new ForbiddenException('Invalid payment');
       }
@@ -137,54 +156,32 @@ export class PaymentsService {
           providerRef,
         },
         include: {
-          booking: {
-            include: {
-              venue: true,
-              wedding: { include: { user: true } },
-            },
-          },
-        },
-      });
-
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: {
-          status: BookingStatus.CONFIRMED,
+          wedding: { include: { user: true } },
+          payer: true,
+          payee: true,
         },
       });
 
       console.log({
         event: 'PAYMENT_CONFIRMED',
-        bookingId: payment.bookingId,
+        weddingId: payment.weddingId,
         paymentId,
       });
 
       return {
         payment,
-        email: payment.booking.wedding.user.email,
-        venue: payment.booking.venue.name,
-        date: payment.booking.weddingDate,
-        bookingId: payment.bookingId,
+        email: payment.wedding.user.email,
+        amount: payment.amount,
+        weddingId: payment.weddingId,
       };
     });
 
-    // Send notification and generate invoice outside transaction
-    await this.notifications.bookingConfirmed(
+    // Send notification outside transaction
+    await this.notifications.paymentConfirmed(
       result.email,
-      result.venue,
-      result.date,
+      result.amount,
+      result.weddingId,
     );
-
-    try {
-      const invoice = await this.invoices.generateInvoice(
-        'system',
-        'ADMIN',
-        result.bookingId,
-      );
-      console.log(`✅ Invoice generated: ${invoice.invoiceNo}`);
-    } catch (err) {
-      console.error('Invoice generation failed:', err);
-    }
 
     return result.payment;
   }
@@ -195,12 +192,9 @@ export class PaymentsService {
       const payment = await tx.payment.findFirst({
         where: { providerRef: orderId },
         include: {
-          booking: {
-            include: {
-              venue: true,
-              wedding: { include: { user: true } },
-            },
-          },
+          wedding: { include: { user: true } },
+          payer: true,
+          payee: true,
         },
       });
 
@@ -224,32 +218,26 @@ export class PaymentsService {
         },
       });
 
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: { status: BookingStatus.CONFIRMED },
-      });
-
       console.log({
         event: 'PAYMENT_CONFIRMED',
-        bookingId: payment.bookingId,
+        weddingId: payment.weddingId,
         paymentRef,
       });
 
       return {
         success: true,
-        bookingId: payment.bookingId,
-        email: payment.booking.wedding.user.email,
-        venue: payment.booking.venue.name,
-        date: payment.booking.weddingDate,
+        weddingId: payment.weddingId,
+        email: payment.wedding.user.email,
+        amount: payment.amount,
       };
     });
 
-    // Send notification and generate invoice outside transaction (non-blocking)
+    // Send notification outside transaction (non-blocking)
     if (result.success && result.email) {
-      await this.notifications.bookingConfirmed(
+      await this.notifications.paymentConfirmed(
         result.email,
-        result.venue,
-        result.date,
+        result.amount,
+        result.weddingId,
       );
 
       // Generate invoice
@@ -257,7 +245,7 @@ export class PaymentsService {
         const invoice = await this.invoices.generateInvoice(
           'system',
           'ADMIN',
-          result.bookingId,
+          result.weddingId,
         );
         console.log(`Invoice generated: ${invoice.invoiceNo}`);
       } catch (err) {
