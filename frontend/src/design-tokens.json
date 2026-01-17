@@ -1,0 +1,139 @@
+{
+  "colors": {
+    "brand": {
+      "roseSoft": "#FFF1F5",
+      "blush": "#F7C6D0",
+      "rani": "#C94A6A",
+      "pearl": "#FFFDFB",
+      "champagne": "#F3E8D3",
+      "blush0": "#FFFBFD",
+      "blush1": "#FFF2F7",
+      "blush2": "#FAD9E4",
+      "ink": "#111225"
+    },
+    "gold": {
+      "antique": "#C9A24D",
+      "champagne": "#EAD7A4"
+    },
+    "neutral": {
+      "white": "#FFFFFF",
+      "charcoal": "#2E2E2E",
+      "muted": "#6B7280",
+      "divider": "#E5E7EB"
+    },
+    "semantic": {
+      "success": "#1F7A63",
+      "warning": "#D97706",
+      "error": "#B91C1C",
+      "info": "#2563EB"
+    }
+  },
+
+  "typography": {
+    "fontFamily": {
+      "serif": "'Playfair Display', serif",
+      "sans": "'Inter', system-ui, -apple-system, sans-serif"
+    },
+    "fontSize": {
+      "h1": { "size": "40px", "lineHeight": "48px", "weight": 600 },
+      "h2": { "size": "32px", "lineHeight": "40px", "weight": 500 },
+      "h3": { "size": "24px", "lineHeight": "32px", "weight": 500 },
+      "bodyLg": { "size": "16px", "lineHeight": "24px", "weight": 400 },
+      "bodySm": { "size": "14px", "lineHeight": "20px", "weight": 400 },
+      "caption": { "size": "12px", "lineHeight": "16px", "weight": 500 }
+    }
+  },
+
+  "spacing": {
+    "unit": 4,
+    "xs": "4px",
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px",
+    "xl": "32px",
+    "2xl": "40px",
+    "3xl": "64px"
+  },
+
+  "radius": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "20px",
+    "pill": "9999px"
+  },
+
+  "elevation": {
+    "card": "0 8px 24px rgba(0,0,0,0.06)",
+    "cardHover": "0 12px 32px rgba(0,0,0,0.10)",
+    "modal": "0 24px 64px rgba(0,0,0,0.16)",
+    "glass": "0 12px 36px rgba(17, 18, 37, 0.10)",
+    "glassHover": "0 18px 56px rgba(17, 18, 37, 0.16)",
+    "glowRani": "0 0 32px rgba(201, 74, 106, 0.22)",
+    "glowGold": "0 0 28px rgba(201, 162, 77, 0.18)"
+  },
+
+  "motion": {
+    "duration": {
+      "fast": "120ms",
+      "medium": "200ms",
+      "slow": "250ms"
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "enter": "cubic-bezier(0, 0, 0.2, 1)",
+      "exit": "cubic-bezier(0.4, 0, 1, 1)"
+    },
+    "scale": {
+      "hover": 1.02,
+      "press": 0.98
+    },
+    "translate": {
+      "enterY": "8px",
+      "enterYLarge": "12px"
+    }
+  },
+
+  "components": {
+    "button": {
+      "primary": {
+        "background": "colors.brand.rani",
+        "text": "colors.neutral.white",
+        "radius": "radius.md",
+        "shadow": "elevation.card",
+        "hoverShadow": "elevation.cardHover"
+      },
+      "secondary": {
+        "border": "1px solid colors.gold.antique",
+        "text": "colors.gold.antique",
+        "background": "transparent"
+      }
+    },
+    "card": {
+      "background": "colors.neutral.white",
+      "radius": "radius.lg",
+      "shadow": "elevation.card",
+      "accentBorder": "colors.gold.antique"
+    },
+    "focusRing": {
+      "color": "colors.gold.antique",
+      "width": "2px",
+      "offset": "2px"
+    },
+    "glass": {
+      "panel": {
+        "bg": "rgba(255,255,255,0.55)",
+        "bgStrong": "rgba(255,255,255,0.72)",
+        "bgRose": "rgba(255,241,245,0.58)",
+        "border": "rgba(255,255,255,0.42)",
+        "borderSoft": "rgba(255,255,255,0.28)",
+        "borderAccent": "rgba(201,74,106,0.22)"
+      },
+      "blur": {
+        "sm": "12px",
+        "md": "18px",
+        "lg": "26px"
+      }
+    }
+  }
+}
