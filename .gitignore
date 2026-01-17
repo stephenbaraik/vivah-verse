@@ -1,0 +1,6 @@
+
+# Ignore build artifacts and large deps
+frontend/.next/
+frontend/node_modules/
+backend/meilisearch
+
